@@ -10,8 +10,11 @@ import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:loader_overlay/loader_overlay.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pota_video_caption/caption_generator_controller.dart';
+import 'package:pota_video_caption/models/video_project/video_project.dart';
 import 'package:pota_video_caption/pages/download_model_page.dart';
 import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/models/video_project/video_project.dart'
+    as vp;
 import 'package:pota_video_caption/video_caption_controller.dart';
 import 'package:pota_video_caption/widgets/bottom_sheet_with_controller.dart';
 import 'package:pota_video_caption/widgets/caption_text_align.dart';
@@ -25,8 +28,12 @@ import 'package:pota_video_caption/widgets/timeline_slider.dart';
 import 'package:pota_video_caption/widgets/video_viewer.dart';
 import 'package:path/path.dart' as path;
 
+import 'package:pota_video_caption/utils/isar_service.dart';
+import 'package:isar/isar.dart';
+
 class CaptionEditorPage extends StatefulWidget {
-  const CaptionEditorPage({super.key});
+  VideoProject? videoProject;
+  CaptionEditorPage({super.key, this.videoProject});
 
   @override
   State<CaptionEditorPage> createState() => _CaptionEditorPageState();
@@ -49,6 +56,9 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
   String? _videoPath;
   String? _audioPath;
 
+  final IsarService isarService = IsarService();
+  VideoProject? videoProject;
+
   CaptionGeneratorController _captionGeneratorController =
       CaptionGeneratorController();
 
@@ -61,7 +71,91 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     _initAll();
   }
 
+  Future<String?> _generateThumbnail(int id) async {
+    final documentsDir = await getApplicationDocumentsDirectory();
+    var targetDir = documentsDir.path + "/thumbnail";
+    if (!File(targetDir).existsSync()) {
+      await Directory(targetDir).create(recursive: true);
+    }
+    String? targetPath = documentsDir.path + "/thumbnail/$id.png";
+    print("FRAME : ${(_controller!.videoDuration.inSeconds / 3).toInt()}");
+    await FFmpegKit.execute(
+      '-y -i "$_videoPath" -ss ${(_controller!.videoDuration.inSeconds / 3).toInt()}  -vframes 1 -vf  "scale=160:-1" -q:v 2 "$targetPath"',
+    ).then((session) async {
+      final returnCode = await session.getReturnCode();
+
+      if (ReturnCode.isSuccess(returnCode)) {
+      } else if (ReturnCode.isCancel(returnCode)) {
+        // CANCEL
+      } else {
+        // ERROR
+        targetPath = null;
+      }
+
+      final output = await session.getOutput();
+      log("$output");
+
+      final logs = await session.getLogs();
+      for (var log in logs) {
+        //print(log.getMessage());
+      }
+    });
+
+    return targetPath;
+  }
+
+  Future<void> _checkData() async {
+    var isar = isarService.isar;
+    if (widget.videoProject == null) {
+      final newProject = VideoProject(
+        title: "Untitled",
+        duration: 0,
+        createdAt: DateTime.now(),
+        videoPath: _videoPath,
+      );
+
+      await isar.writeTxn(() async {
+        newProject.id = await isar.videoProjects.put(
+          newProject,
+        ); // insert & update
+      });
+      setState(() {
+        videoProject = newProject;
+      });
+    } else {
+      videoProject = widget.videoProject;
+      _videoPath = videoProject!.videoPath;
+
+      if (_videoPath != null) {
+        await _initVideo(_videoPath!);
+      }
+
+      if (videoProject!.captions != null) {
+        for (var caption in videoProject!.captions!) {
+          _controller!.addCaption(utils.Caption.fromJson(caption.toJson()));
+        }
+      }
+      setState(() {});
+    }
+  }
+
+  Future<void> _updateData() async {
+    var isar = isarService.isar;
+
+    List<vp.Caption> _captions = [];
+    for (var caption in _controller!.captions) {
+      _captions.add(vp.Caption.fromJson(caption.toJson()));
+    }
+
+    videoProject!.captions = _captions;
+
+    await isar.writeTxn(() async {
+      await isar.videoProjects.put(videoProject!); // insert & update
+    });
+  }
+
   Future<void> _initAll() async {
+    await _checkData();
     await _captionGeneratorController.copyModel();
     await _getSystemFonts();
   }
@@ -107,7 +201,24 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     final command =
         '-y -i "$videoPath" -vn -acodec pcm_s16le -ar 16000 -ac 1 "$audioOutputPath"';
 
-    await FFmpegKit.execute(command);
+    await FFmpegKit.execute(command).then((session) async {
+      final returnCode = await session.getReturnCode();
+
+      if (ReturnCode.isSuccess(returnCode)) {
+      } else if (ReturnCode.isCancel(returnCode)) {
+        // CANCEL
+      } else {
+        // ERROR
+      }
+
+      final output = await session.getOutput();
+      log("$output");
+
+      final logs = await session.getLogs();
+      for (var log in logs) {
+        print(log.getMessage());
+      }
+    });
 
     return audioOutputPath;
   }
@@ -148,7 +259,7 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     for (var c in newCaptions) {
       _controller!.addCaption(c);
     }
-
+    await _updateData();
     if (mounted) {
       context.loaderOverlay.hide();
     }
@@ -283,26 +394,42 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     if (result != null) {
       if (mounted) {
         _videoPath = result.files.single.path!;
-        _controller = VideoCaptoinController.file(result.files.single.path!);
-        _controller!
-            .initializeVideo()
-            .then((_) => setState(() {}))
-            .catchError((error) {});
-        _controller!.addListener(() {
-          setState(() {});
-          if (_controller!.video.value.isPlaying ||
-              _controller!.highlightCaption == null) {
-            _sheetController.hide();
-            _sheetController2.hide();
-          }
-        });
-        _controller!.video.addListener(() {
-          if (_controller!.video.value.isPlaying) {
-            _sheetController.hide();
-            _sheetController2.hide();
-          }
-        });
+        await _initVideo(_videoPath!);
       }
+    }
+  }
+
+  Future<void> _initVideo(String url) async {
+    if (mounted) {
+      _controller = VideoCaptoinController.file(url);
+      _controller!
+          .initializeVideo()
+          .then((_) async {
+            if (videoProject!.thumbnail == null) {
+              var thumbnail = await _generateThumbnail(videoProject!.id);
+              videoProject!.thumbnail = thumbnail;
+            }
+            videoProject!.duration = _controller!.videoDuration.inSeconds;
+            videoProject!.videoPath = url;
+            await _updateData();
+          })
+          .catchError((error) {});
+      _controller!.addListener(() {
+        setState(() {});
+        if (_controller!.video.value.isPlaying ||
+            _controller!.highlightCaption == null) {
+          _sheetController.hide();
+          _sheetController2.hide();
+        }
+        _updateData();
+      });
+      _controller!.video.addListener(() {
+        if (_controller!.video.value.isPlaying) {
+          _sheetController.hide();
+          _sheetController2.hide();
+        }
+        _updateData();
+      });
     }
   }
 
@@ -365,7 +492,7 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     return WillPopScope(
       child: Scaffold(
         appBar: AppBar(
-          title: Text("Caption Editor"),
+          title: Text("${videoProject?.title}"),
           actions: [
             ElevatedButton(
               onPressed: () {
@@ -377,96 +504,80 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
         ),
         backgroundColor: Colors.black,
         body:
-            _controller != null && _controller!.initialized
+            videoProject != null
                 ? SafeArea(
                   child: Stack(
                     children: [
-                      // Row(
-                      //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      //   children: [
-                      //     IconButton(
-                      //       onPressed: _pickVideo,
-                      //       icon: Icon(
-                      //         Icons.video_file_outlined,
-                      //         color: Colors.white,
-                      //       ),
-                      //     ),
-                      //     IconButton(
-                      //       onPressed: () {
-                      //         _exportVideo();
-                      //       },
-                      //       icon: Icon(Icons.save, color: Colors.white),
-                      //     ),
-                      //   ],
-                      // ),
-                      GestureDetector(
-                        onTap: () {
-                          _controller?.dismissHighlightedCaption();
-                          _sheetController.hide();
-                          _sheetController2.hide();
-                        },
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: Center(
-                                child: VideoViewer(controller: _controller!),
-                              ),
-                            ),
-                            Text(
-                              "${formatter(_controller!.videoPosition)}/${formatter(_controller!.videoDuration)}",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Container(
-                              margin: const EdgeInsets.only(
-                                top: 10,
-                                bottom: 50,
-                              ),
-                              child: TimelineSlider(
-                                height: 100,
-                                controller: _controller!,
-                                onCaptionTap: (caption) {
-                                  _sheetController.show();
-                                },
-                              ),
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      _controller != null && _controller!.initialized
+                          ? GestureDetector(
+                            onTap: () {
+                              _controller?.dismissHighlightedCaption();
+                              _sheetController.hide();
+                              _sheetController2.hide();
+                            },
+                            child: Column(
                               children: [
-                                IconButton(
-                                  onPressed: () {
-                                    _controller!.addCaption(
-                                      utils.Caption(
-                                        startTime: _controller!.videoPosition,
-                                        endTime:
-                                            _controller!.videoPosition +
-                                            Duration(seconds: 2),
-                                        text: "Hello World",
-                                        fontColor: "white",
-                                        fontSize: 24,
-                                        borderWidth: 2,
-                                        borderColor: "black",
-                                        textAlign: "center",
-                                      ),
-                                    );
-                                  },
-                                  icon: Icon(
-                                    Icons.subtitles,
-                                    color: Colors.white,
+                                Expanded(
+                                  child: Center(
+                                    child: VideoViewer(
+                                      controller: _controller!,
+                                    ),
                                   ),
                                 ),
-                                IconButton(
-                                  onPressed: () {
-                                    _generateCaptionSetting(context);
-                                  },
-                                  icon: Icon(
-                                    Icons.generating_tokens,
+                                Text(
+                                  "${formatter(_controller!.videoPosition)}/${formatter(_controller!.videoDuration)}",
+                                  style: const TextStyle(
                                     color: Colors.white,
+                                    fontSize: 16,
                                   ),
                                 ),
-                                IconButton(
+                                Container(
+                                  margin: const EdgeInsets.only(
+                                    top: 10,
+                                    bottom: 50,
+                                  ),
+                                  child: TimelineSlider(
+                                    height: 100,
+                                    controller: _controller!,
+                                    onCaptionTap: (caption) {
+                                      _sheetController.show();
+                                    },
+                                  ),
+                                ),
+
+                                ValueListenableBuilder(
+                                  valueListenable: _isExporting,
+                                  builder:
+                                      (_, bool export, Widget? child) =>
+                                          AnimatedSize(
+                                            duration: kThemeAnimationDuration,
+                                            child: export ? child : null,
+                                          ),
+                                  child: AlertDialog(
+                                    title: ValueListenableBuilder(
+                                      valueListenable: _exportingProgress,
+                                      builder:
+                                          (_, double value, __) => Text(
+                                            "Exporting video ${(value * 100).ceil()}%",
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                          : Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: _pickVideo,
+                                  child: Text("Select Video"),
+                                ),
+                                ElevatedButton(
                                   onPressed: () {
                                     Navigator.push(
                                       context,
@@ -476,45 +587,78 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
                                       ),
                                     );
                                   },
-                                  icon: Icon(
-                                    Icons.settings,
-                                    color: Colors.white,
-                                  ),
+                                  child: Text("Setting"),
                                 ),
                               ],
                             ),
+                          ),
 
-                            ValueListenableBuilder(
-                              valueListenable: _isExporting,
-                              builder:
-                                  (_, bool export, Widget? child) =>
-                                      AnimatedSize(
-                                        duration: kThemeAnimationDuration,
-                                        child: export ? child : null,
-                                      ),
-                              child: AlertDialog(
-                                title: ValueListenableBuilder(
-                                  valueListenable: _exportingProgress,
-                                  builder:
-                                      (_, double value, __) => Text(
-                                        "Exporting video ${(value * 100).ceil()}%",
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(
+                              onPressed: () {
+                                if (_videoPath == null) {
+                                  return;
+                                }
+                                _controller!.addCaption(
+                                  utils.Caption(
+                                    startTime: _controller!.videoPosition,
+                                    endTime:
+                                        _controller!.videoPosition +
+                                        Duration(seconds: 2),
+                                    text: "Hello World",
+                                    fontColor: "white",
+                                    fontSize: 24,
+                                    borderWidth: 2,
+                                    borderColor: "black",
+                                    textAlign: "center",
+                                  ),
+                                );
+                                _updateData();
+                              },
+                              icon: Icon(
+                                Icons.subtitles,
+                                color:
+                                    _videoPath != null
+                                        ? Colors.white
+                                        : Colors.grey,
                               ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                if (_videoPath == null) {
+                                  return;
+                                }
+                                _generateCaptionSetting(context);
+                              },
+                              icon: Icon(
+                                Icons.generating_tokens,
+                                color:
+                                    _videoPath != null
+                                        ? Colors.white
+                                        : Colors.grey,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DownloadModelPage(),
+                                  ),
+                                );
+                              },
+                              icon: Icon(Icons.settings, color: Colors.white),
                             ),
                           ],
                         ),
                       ),
 
-                      // //add a fullscreen touchable widget
-                      // GestureDetector(
-                      //   onTap: () {
-                      //     _controller?.dismissHighlightedCaption();
-                      //     _sheetController.hide();
-                      //   },
-                      //   child: Container(color: Colors.transparent),
-                      // ),
                       BottomSheetWithController(
                         controller: _sheetController,
                         sheetHeight: 100,
@@ -756,28 +900,7 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
                     ],
                   ),
                 )
-                : Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton(
-                        onPressed: _pickVideo,
-                        child: Text("Select Video"),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DownloadModelPage(),
-                            ),
-                          );
-                        },
-                        child: Text("Setting"),
-                      ),
-                    ],
-                  ),
-                ),
+                : Center(child: CircularProgressIndicator()),
       ),
       onWillPop: () async {
         // Try to handle with sheet manager first

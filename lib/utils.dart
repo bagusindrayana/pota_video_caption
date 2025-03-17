@@ -112,6 +112,60 @@ class Caption {
     );
   }
 
+  factory Caption.fromJson(Map<String, dynamic> json) {
+    return Caption(
+      text: json['text'],
+      fontColor: json['fontColor'],
+      fontSize: json['fontSize'],
+      fontFile: json['fontFile'],
+      x: json['x'],
+      y: json['y'],
+      startTime: Duration(
+        milliseconds: int.parse((json['startTime'] ?? 0).toString()),
+      ),
+      endTime: Duration(
+        milliseconds: int.parse((json['endTime'] ?? 0).toString()),
+      ),
+      addBox: json['addBox'],
+      boxColor: json['boxColor'],
+      boxBorderWidth: json['boxBorderWidth'],
+      boxBorderColor: json['boxBorderColor'],
+      textAlign: json['textAlign'],
+      borderWidth: json['borderWidth'],
+      borderColor: json['borderColor'],
+      shadowX: json['shadowX'],
+      shadowY: json['shadowY'],
+      shadowColor: json['shadowColor'],
+      lineSpacing: json['lineSpacing'],
+      alpha: json['alpha'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'text': text,
+      'fontColor': fontColor,
+      'fontSize': fontSize,
+      'fontFile': fontFile,
+      'x': x,
+      'y': y,
+      'startTime': startTime.inMilliseconds,
+      'endTime': endTime.inMilliseconds,
+      'addBox': addBox,
+      'boxColor': boxColor,
+      'boxBorderWidth': boxBorderWidth,
+      'boxBorderColor': boxBorderColor,
+      'textAlign': textAlign,
+      'borderWidth': borderWidth,
+      'borderColor': borderColor,
+      'shadowX': shadowX,
+      'shadowY': shadowY,
+      'shadowColor': shadowColor,
+      'lineSpacing': lineSpacing,
+      'alpha': alpha,
+    };
+  }
+
   String generateFilter() {
     // Default values for optional parameters
     String color = fontColor ?? 'white'; // Default font color

@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:archive/archive.dart';
 
 class DownloadHelper {
+  static ValueNotifier<File?> downloadedFile = ValueNotifier(null);
   // Download a file and track progress
-  static Future<File> downloadFile({
+  static Future<ValueNotifier<File?>> downloadFile({
     required String url,
     required String savePath,
     required Function(double progress) onProgress,
@@ -19,7 +21,7 @@ class DownloadHelper {
 
       int receivedLength = 0;
 
-      await streamedResponse.stream.listen(
+      streamedResponse.stream.listen(
         (List<int> chunk) {
           receivedLength += chunk.length;
           if (contentLength != null) {
@@ -30,6 +32,7 @@ class DownloadHelper {
         },
         onDone: () async {
           await fileStream.close();
+          downloadedFile.value = file;
         },
         onError: (error) {
           fileStream.close();
@@ -38,7 +41,7 @@ class DownloadHelper {
         cancelOnError: true,
       );
 
-      return file;
+      return downloadedFile;
     } else {
       throw Exception(
         'Failed to download file: Status code ${streamedResponse.statusCode}',
