@@ -62,12 +62,11 @@ class _DownloadModelPageState extends State<DownloadModelPage> {
 
   Future<void> checkModelExist() async {
     final documentsDir = await getApplicationDocumentsDirectory();
-    for (var model in _modelList) {
-      final file = File(
-        '${documentsDir.path}/sherpa-onnx-whisper-${model.name}/${model.name}-tokens.txt',
-      );
 
-      if (file.existsSync()) {
+    for (var model in _modelList) {
+      if (await Directory(
+        '${documentsDir.path}/models/sherpa-onnx-whisper-${model.name}',
+      ).exists()) {
         model.exist = true;
       }
     }
@@ -95,28 +94,26 @@ class _DownloadModelPageState extends State<DownloadModelPage> {
   }
 
   Future<void> startDownloadAndExtract(WhisperModel model) async {
-    setState(() {
-      _isDownloading = true;
-      model.updateProgress(0.0);
-    });
-
     try {
       final tempDir = Directory.systemTemp;
       final bz2FilePath =
           '${tempDir.path}/sherpa-onnx-whisper-${model.name}.tar.bz2';
       final documentsDir = await getApplicationDocumentsDirectory();
-      final extractedFilePath =
-          '${documentsDir.path}/sherpa-onnx-whisper-${model.name}';
+      final extractedFilePath = '${documentsDir.path}/models';
 
       if (File(bz2FilePath).existsSync()) {
-      print("EXIST");
+        print("EXIST");
         var size = await getFileSizeInMB(File(bz2FilePath));
+
         if (size >= model.size - 1) {
           return extractFile(File(bz2FilePath), extractedFilePath);
         }
       }
 
-      return;
+      setState(() {
+        _isDownloading = true;
+        model.updateProgress(0.0);
+      });
 
       // Download the file
       final bz2File = await DownloadHelper.downloadFile(
@@ -129,12 +126,17 @@ class _DownloadModelPageState extends State<DownloadModelPage> {
             });
           }
           if (progress == 1) {
+            setState(() {
+              model.exist = true;
+            });
             // Extract the file
+            print("FINISH");
           }
         },
       );
       bz2File.addListener(() {
         if (bz2File.value != null) {
+          print(bz2File.value?.path);
           extractFile(bz2File.value, extractedFilePath);
         }
       });

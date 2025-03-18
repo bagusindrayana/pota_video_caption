@@ -7,6 +7,7 @@ import 'package:pota_video_caption/utils.dart' as utils;
 import 'package:pota_video_caption/video_caption_controller.dart';
 import 'package:pota_video_caption/widgets/caption_text_editor.dart';
 import 'package:pota_video_caption/widgets/scale_painter.dart';
+import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 
 class TimelineSlider extends StatefulWidget {
   const TimelineSlider({
@@ -16,7 +17,7 @@ class TimelineSlider extends StatefulWidget {
     this.height = 100,
     this.captionBackgroundColor = const Color(0xFF974836),
     this.touchAreaColor = Colors.grey,
-    this.baselineColor = Colors.redAccent,
+    this.baselineColor = Colors.purpleAccent,
     this.captionTextStyle = const TextStyle(
       color: Colors.white,
       fontSize: 14,
@@ -25,7 +26,7 @@ class TimelineSlider extends StatefulWidget {
   });
 
   final VideoCaptoinController controller;
-  final Function(utils.Caption caption)? onCaptionTap;
+  final Function(ffmpeg_helper.Caption caption)? onCaptionTap;
 
   /// The [height] param specifies the height of the generated thumbnails
   final double height;
@@ -132,7 +133,7 @@ class _TimelineSliderState extends State<TimelineSlider>
   }
 
   // Returns the max size the layout should take with the rect value
-  double computeWidth(utils.Caption caption) {
+  double computeWidth(ffmpeg_helper.Caption caption) {
     final start = caption.startTime.inMilliseconds;
     final end = caption.endTime.inMilliseconds;
     final duration = widget.controller.videoDuration.inMilliseconds;
@@ -141,7 +142,7 @@ class _TimelineSliderState extends State<TimelineSlider>
   }
 
   // Returns the max size the layout should take with the rect value
-  double computeStartX(utils.Caption caption) {
+  double computeStartX(ffmpeg_helper.Caption caption) {
     // var captionWidth =
     //     (caption.endTime.inSeconds * perPixelInSec) -
     //     (caption.startTime.inSeconds * perPixelInSec);
@@ -403,7 +404,7 @@ class _TimelineSliderState extends State<TimelineSlider>
     }
   }
 
-  _buildSingleCaption(utils.Caption caption) {
+  _buildSingleCaption(ffmpeg_helper.Caption caption) {
     double width = computeWidth(caption);
     double startX = computeStartX(caption);
 

@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
 import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
 
@@ -75,7 +76,6 @@ class CaptionGeneratorController extends ChangeNotifier {
         for (final modelFile in modelFiles) {
           final assetFile = 'assets/sherpa-onnx-whisper-$model/$modelFile';
           final targetFile = '${modelDir.path}/${modelFile.split('/').last}';
-          log(targetFile);
 
           if (!File(targetFile).existsSync()) {
             //final target = path.join(documentsDir.path, assetFile);
@@ -136,10 +136,10 @@ class CaptionGeneratorController extends ChangeNotifier {
     final documentsDir = await getApplicationDocumentsDirectory();
 
     final modelDir = Directory(
-      '${documentsDir.path}/sherpa-onnx-whisper-$model',
+      '${documentsDir.path}/models/sherpa-onnx-whisper-$model',
     );
 
-    if (!modelDir.existsSync()) {
+    if (!File('${modelDir.path}/$model-tokens.txt').existsSync()) {
       throw Exception('Model not found');
     }
 
@@ -186,8 +186,8 @@ class CaptionGeneratorController extends ChangeNotifier {
     _isModelInitialized = true;
   }
 
-  Future<List<utils.Caption>> generateCaptions(String audioPath) async {
-    List<utils.Caption> captions = [];
+  Future<List<ffmpeg_helper.Caption>> generateCaptions(String audioPath) async {
+    List<ffmpeg_helper.Caption> captions = [];
     _buffer = sherpa_onnx.CircularBuffer(capacity: 16000 * 180);
 
     if (_vad != null) {
@@ -238,7 +238,7 @@ class CaptionGeneratorController extends ChangeNotifier {
                     : 0;
 
             captions.add(
-              utils.Caption(
+              ffmpeg_helper.Caption(
                 startTime: Duration(milliseconds: start.toInt()),
                 endTime: Duration(milliseconds: (start + duration).toInt()),
                 text: "${result?.text.trim()}",

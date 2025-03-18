@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 
@@ -12,7 +13,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pota_video_caption/caption_generator_controller.dart';
 import 'package:pota_video_caption/models/video_project/video_project.dart';
 import 'package:pota_video_caption/pages/download_model_page.dart';
+import 'package:pota_video_caption/pages/video_result_preview.dart';
 import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 import 'package:pota_video_caption/models/video_project/video_project.dart'
     as vp;
 import 'package:pota_video_caption/video_caption_controller.dart';
@@ -62,6 +65,8 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
   CaptionGeneratorController _captionGeneratorController =
       CaptionGeneratorController();
 
+  TextEditingController _titleController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -78,7 +83,7 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
       await Directory(targetDir).create(recursive: true);
     }
     String? targetPath = documentsDir.path + "/thumbnail/$id.png";
-    print("FRAME : ${(_controller!.videoDuration.inSeconds / 3).toInt()}");
+    // print("FRAME : ${(_controller!.videoDuration.inSeconds / 3).toInt()}");
     await FFmpegKit.execute(
       '-y -i "$_videoPath" -ss ${(_controller!.videoDuration.inSeconds / 3).toInt()}  -vframes 1 -vf  "scale=160:-1" -q:v 2 "$targetPath"',
     ).then((session) async {
@@ -132,11 +137,15 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
 
       if (videoProject!.captions != null) {
         for (var caption in videoProject!.captions!) {
-          _controller!.addCaption(utils.Caption.fromJson(caption.toJson()));
+          _controller!.addCaption(
+            ffmpeg_helper.Caption.fromJson(caption.toJson()),
+          );
         }
       }
       setState(() {});
     }
+
+    _titleController.text = videoProject?.title ?? "";
   }
 
   Future<void> _updateData() async {
@@ -212,11 +221,11 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
       }
 
       final output = await session.getOutput();
-      log("$output");
+      //log("$output");
 
       final logs = await session.getLogs();
       for (var log in logs) {
-        print(log.getMessage());
+        //print(log.getMessage());
       }
     });
 
@@ -232,8 +241,10 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     }
 
     if (mounted) {
-      context.loaderOverlay.show();
+      utils.loadingDialog(context);
     }
+
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (_audioPath == null) {
       // ScaffoldMessenger.of(context).showSnackBar(
@@ -249,7 +260,13 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     try {
       await _captionGeneratorController.initializeModel(model, language);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$e")));
+      print(e);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("$e")));
+      }
       return;
     }
     var newCaptions = await _captionGeneratorController.generateCaptions(
@@ -261,7 +278,7 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     }
     await _updateData();
     if (mounted) {
-      context.loaderOverlay.hide();
+      Navigator.pop(context);
     }
   }
 
@@ -376,11 +393,16 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
       builder: (BuildContext context) {
         return GenerateCaptionSetting(
           onSubmit: (language, model) {
-            _generateCaptions(language, model);
+            // _generateCaptions(language, model);
           },
         );
       },
-    );
+    ).then((v) {
+      if (v is String) {
+        var data = jsonDecode(v);
+        _generateCaptions(data['language'], data['model']);
+      }
+    });
   }
 
   Future<void> _pickVideo() async {
@@ -439,52 +461,164 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
       return;
     }
     if (mounted) {
-      context.loaderOverlay.show();
+      utils.loadingDialog(context);
     }
 
-    final documentsDir = await getApplicationDocumentsDirectory();
+    //final documentsDir = await getApplicationDocumentsDirectory();
+    var dateNow = DateTime.now();
+    //foramt dateNow to Y_m_d_H_i_s
+    var formatDate = dateNow
+        .toString()
+        .replaceAll('-', '_')
+        .replaceAll(":", "_")
+        .replaceAll(".", "_");
+    var targetOutput =
+        '${_videoPath!.replaceAll(RegExp(r'\.\w+$'), '')}_caption_$formatDate.mp4';
 
-    utils.FFmpegCaptionManager manager = utils.FFmpegCaptionManager(
-      inputVideoPath: _videoPath!,
-      outputVideoPath:
-          '${_videoPath!.replaceAll(RegExp(r'\.\w+$'), '')}_output.mp4',
-      captions: _controller!.captions,
-    );
-    log(manager.generateCommand());
+    ffmpeg_helper.FFmpegCaptionManager manager =
+        ffmpeg_helper.FFmpegCaptionManager(
+          inputVideoPath: _videoPath!,
+          outputVideoPath: targetOutput,
+          captions: _controller!.captions,
+        );
 
     await FFmpegKit.execute(manager.generateCommand()).then((session) async {
       final returnCode = await session.getReturnCode();
 
       if (ReturnCode.isSuccess(returnCode)) {
+        if (File(targetOutput).existsSync()) {
+          //await 1 second
+          await Future.delayed(const Duration(seconds: 1));
+
+          final params = SaveFileDialogParams(sourceFilePath: targetOutput);
+          final filePath = await FlutterFileDialog.saveFile(params: params);
+
+          // print(filePath);
+          if (filePath != null) {
+            videoProject?.exported = true;
+            await _updateData();
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Video Exported : ${path.basename(filePath)}'),
+                ),
+              );
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VideoResultPreview(path: targetOutput),
+                ),
+              );
+            }
+          } else {
+            if (mounted) {
+              Navigator.pop(context);
+            }
+          }
+        } else {
+          if (mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Failed to export video')));
+          }
+        }
       } else if (ReturnCode.isCancel(returnCode)) {
         // CANCEL
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
       } else {
-        // ERROR
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to export video')));
+        }
       }
 
       final output = await session.getOutput();
-      log("$output");
+      //log("$output");
 
       final logs = await session.getLogs();
       for (var log in logs) {
         print(log.getMessage());
       }
     });
+  }
 
-    //await 1 second
-    await Future.delayed(const Duration(seconds: 1));
+  Future<void> _exportSRT() async {
+    if (_controller!.captions.isEmpty || _videoPath == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No subtitles to export')));
+      return;
+    }
 
-    final params = SaveFileDialogParams(
-      sourceFilePath:
-          '${_videoPath!.replaceAll(RegExp(r'\.\w+$'), '')}_output.mp4',
+    String srtContent = '';
+    for (int i = 0; i < _controller!.captions.length; i++) {
+      final subtitle = _controller!.captions[i];
+      srtContent += '${i + 1}\n';
+      srtContent += '${subtitle.advancedSrtFormat}\n';
+      srtContent += '${subtitle.text}\n\n';
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+    final videoFileName = path.basename(_videoPath!);
+    final srtFileName = videoFileName.replaceAll(
+      path.extension(videoFileName),
+      '.srt',
     );
-    final filePath = await FlutterFileDialog.saveFile(params: params);
+    final file = File('${directory.path}/$srtFileName');
 
-    print(filePath);
+    await file.writeAsString(srtContent);
 
     if (mounted) {
-      context.loaderOverlay.hide();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Exported to ${file.path}')));
     }
+  }
+
+  void _showEditTitleDialog() {
+    //show alert dialog with input textfield to edit videoProject.title
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Rename'),
+          content: TextField(
+            controller: _titleController,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Title',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                videoProject!.title = _titleController.text;
+                setState(() {});
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -492,7 +626,12 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
     return WillPopScope(
       child: Scaffold(
         appBar: AppBar(
-          title: Text("${videoProject?.title}"),
+          title: GestureDetector(
+            onTap: () {
+              _showEditTitleDialog();
+            },
+            child: Text("${videoProject?.title}"),
+          ),
           actions: [
             ElevatedButton(
               onPressed: () {
@@ -577,18 +716,18 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
                                   onPressed: _pickVideo,
                                   child: Text("Select Video"),
                                 ),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (context) => DownloadModelPage(),
-                                      ),
-                                    );
-                                  },
-                                  child: Text("Setting"),
-                                ),
+                                // ElevatedButton(
+                                //   onPressed: () {
+                                //     Navigator.push(
+                                //       context,
+                                //       MaterialPageRoute(
+                                //         builder:
+                                //             (context) => DownloadModelPage(),
+                                //       ),
+                                //     );
+                                //   },
+                                //   child: Text("Setting"),
+                                // ),
                               ],
                             ),
                           ),
@@ -600,13 +739,13 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            IconButton(
-                              onPressed: () {
+                            InkWell(
+                              onTap: () {
                                 if (_videoPath == null) {
                                   return;
                                 }
                                 _controller!.addCaption(
-                                  utils.Caption(
+                                  ffmpeg_helper.Caption(
                                     startTime: _controller!.videoPosition,
                                     endTime:
                                         _controller!.videoPosition +
@@ -621,31 +760,59 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
                                 );
                                 _updateData();
                               },
-                              icon: Icon(
-                                Icons.subtitles,
-                                color:
-                                    _videoPath != null
-                                        ? Colors.white
-                                        : Colors.grey,
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.subtitles,
+                                    color:
+                                        _videoPath != null
+                                            ? Colors.white
+                                            : Colors.grey,
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    "Add Caption",
+                                    style: TextStyle(
+                                      color:
+                                          _videoPath != null
+                                              ? Colors.white
+                                              : Colors.grey,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              onPressed: () {
+                            InkWell(
+                              onTap: () {
                                 if (_videoPath == null) {
                                   return;
                                 }
                                 _generateCaptionSetting(context);
                               },
-                              icon: Icon(
-                                Icons.generating_tokens,
-                                color:
-                                    _videoPath != null
-                                        ? Colors.white
-                                        : Colors.grey,
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.generating_tokens,
+                                    color:
+                                        _videoPath != null
+                                            ? Colors.white
+                                            : Colors.grey,
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    "AI Caption",
+                                    style: TextStyle(
+                                      color:
+                                          _videoPath != null
+                                              ? Colors.white
+                                              : Colors.grey,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              onPressed: () {
+                            InkWell(
+                              onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -653,7 +820,21 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
                                   ),
                                 );
                               },
-                              icon: Icon(Icons.settings, color: Colors.white),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.settings, color: Colors.white),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    "Setting",
+                                    style: TextStyle(
+                                      color:
+                                          _videoPath != null
+                                              ? Colors.white
+                                              : Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),

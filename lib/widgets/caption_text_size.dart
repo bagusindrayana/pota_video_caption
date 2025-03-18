@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 
 class CaptionTextSize extends StatefulWidget {
-  final utils.Caption caption;
+  final ffmpeg_helper.Caption caption;
   final Function onSaved;
 
   const CaptionTextSize({
@@ -17,7 +18,7 @@ class CaptionTextSize extends StatefulWidget {
 
 class _CaptionTextSizeState extends State<CaptionTextSize> {
   double? _currentFontSize = 24.0;
-  utils.Caption? caption;
+  ffmpeg_helper.Caption? caption;
   final FocusNode focusNode = FocusNode();
 
   @override
@@ -26,7 +27,7 @@ class _CaptionTextSizeState extends State<CaptionTextSize> {
     super.initState();
 
     _currentFontSize = widget.caption.fontSize?.toDouble() ?? 24.0;
-    caption = utils.Caption.from(widget.caption);
+    caption = ffmpeg_helper.Caption.from(widget.caption);
 
     // Request focus after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {

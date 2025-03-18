@@ -55,13 +55,14 @@ class DownloadHelper {
     required File bz2File,
     required String outputPath,
   }) async {
-
-    await extractFileToDisk(bz2File.path,outputPath);
-//     final bytes = await bz2File.readAsBytes();
-//     final archive = BZip2Decoder().decodeBytes(bytes);
-//
-//     final extractedFile = File(outputPath);
-//     await extractedFile.writeAsBytes(archive);
+    print(bz2File.path);
+    print(outputPath);
+    await extractFileToDisk(bz2File.path, outputPath);
+    //     final bytes = await bz2File.readAsBytes();
+    //     final archive = BZip2Decoder().decodeBytes(bytes);
+    //
+    //     final extractedFile = File(outputPath);
+    //     await extractedFile.writeAsBytes(archive);
 
     return bz2File;
   }

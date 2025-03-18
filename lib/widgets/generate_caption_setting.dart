@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 class GenerateCaptionSetting extends StatefulWidget {
@@ -124,7 +126,13 @@ class _GenerateCaptionSettingState extends State<GenerateCaptionSetting> {
         ),
         TextButton(
           onPressed: () {
-            Navigator.pop(context, 'OK');
+            Navigator.pop(
+              context,
+              jsonEncode({
+                'language': _selectedLanguage ?? "en",
+                'model': _selectedModel ?? "tiny",
+              }),
+            );
             widget.onSubmit(
               _selectedLanguage ?? "en",
               _selectedModel ?? "tiny",

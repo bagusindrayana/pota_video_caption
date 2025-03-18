@@ -3,21 +3,22 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 import 'package:video_player/video_player.dart';
 
 class VideoCaptoinController extends ChangeNotifier {
   final String dataSource;
   final VideoPlayerController _video;
 
-  List<utils.Caption> _captions = [];
+  List<ffmpeg_helper.Caption> _captions = [];
 
-  List<utils.Caption> get captions => _captions;
+  List<ffmpeg_helper.Caption> get captions => _captions;
 
-  utils.Caption? _caption;
+  ffmpeg_helper.Caption? _caption;
 
-  utils.Caption? get currentCaption => _caption;
+  ffmpeg_helper.Caption? get currentCaption => _caption;
 
-  utils.Caption? highlightCaption;
+  ffmpeg_helper.Caption? highlightCaption;
 
   /// Get the [VideoPlayerController]
   VideoPlayerController get video => _video;
@@ -58,7 +59,7 @@ class VideoCaptoinController extends ChangeNotifier {
 
   ///get a pre caption of current caption
   ///if current caption is null, return null
-  utils.Caption? getPreCaption() {
+  ffmpeg_helper.Caption? getPreCaption() {
     if (highlightCaption == null) {
       return null;
     }
@@ -72,7 +73,7 @@ class VideoCaptoinController extends ChangeNotifier {
   ///get a next caption of current caption
   ///if current caption is null, return null
   ///if current caption is the last caption, return null
-  utils.Caption? getNextCaption() {
+  ffmpeg_helper.Caption? getNextCaption() {
     if (highlightCaption == null) {
       return null;
     }
@@ -149,12 +150,12 @@ class VideoCaptoinController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addCaption(utils.Caption caption) {
+  void addCaption(ffmpeg_helper.Caption caption) {
     _captions.add(caption);
     notifyListeners();
   }
 
-  void selectCaption(utils.Caption caption) {
+  void selectCaption(ffmpeg_helper.Caption caption) {
     highlightCaption = caption;
     notifyListeners();
   }

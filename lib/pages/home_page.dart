@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:loader_overlay/loader_overlay.dart';
 import 'package:pota_video_caption/models/video_project/video_project.dart';
 import 'package:pota_video_caption/pages/caption_editor_page.dart';
 import 'package:pota_video_caption/utils/isar_service.dart';
@@ -18,14 +19,28 @@ class _HomePageState extends State<HomePage> {
   final IsarService isarService = IsarService();
   List<VideoProject> videos = [];
   VideoProject? _selectedVideo;
+  TextEditingController _titleController = TextEditingController();
 
   final BottomSheetController _sheetController = BottomSheetController();
   double sheetHeight = 200;
 
+  bool fitlerExported = false;
+  List<VideoProject> listVideo = [];
+
   Future<void> getData() async {
     final isar = isarService.isar;
     videos = await isar.videoProjects.where().sortByCreatedAtDesc().findAll();
+    listVideo = videos;
     setState(() {});
+  }
+
+  void filterVideos() {
+    setState(() {
+      listVideo =
+          videos.where((v) {
+            return v.exported == true || fitlerExported == false;
+          }).toList();
+    });
   }
 
   Future<void> deleteData(VideoProject video) async {
@@ -49,7 +64,54 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _selectedVideo = video;
     });
+    _titleController.text = video.title ?? "";
     _sheetController.show();
+  }
+
+  Future<void> _updateData() async {
+    var isar = isarService.isar;
+
+    await isar.writeTxn(() async {
+      await isar.videoProjects.put(_selectedVideo!); // insert & update
+    });
+  }
+
+  void _showEditTitleDialog() {
+    //show alert dialog with input textfield to edit videoProject.title
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Rename'),
+          content: TextField(
+            controller: _titleController,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Title',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                _selectedVideo!.title = _titleController.text;
+                _updateData();
+                setState(() {});
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -114,8 +176,10 @@ class _HomePageState extends State<HomePage> {
                               context,
                               MaterialPageRoute(
                                 builder:
-                                    (context) => CaptionEditorPage(
-                                      videoProject: _selectedVideo,
+                                    (context) => LoaderOverlay(
+                                      child: CaptionEditorPage(
+                                        videoProject: _selectedVideo,
+                                      ),
                                     ),
                               ),
                             ).then((v) {
@@ -127,6 +191,9 @@ class _HomePageState extends State<HomePage> {
                         ),
 
                         ListTile(
+                          onTap: () {
+                            _showEditTitleDialog();
+                          },
                           leading: Icon(Icons.edit_square, size: 32),
                           title: Text("Rename", style: TextStyle(fontSize: 18)),
                         ),
@@ -185,46 +252,66 @@ class _HomePageState extends State<HomePage> {
         // Drafts and Exported tabs
         Row(
           children: [
-            _buildTab('Drafts', true, videos.length),
+            _buildTab('Drafts', !fitlerExported, videos.length, () {
+              fitlerExported = false;
+              setState(() {});
+              filterVideos();
+            }),
             const SizedBox(width: 24),
-            _buildTab('Exported', false, 1),
+            _buildTab(
+              'Exported',
+              fitlerExported,
+              videos.where((v) {
+                return v.exported == true;
+              }).length,
+              () {
+                fitlerExported = true;
+                setState(() {});
+                filterVideos();
+              },
+            ),
           ],
         ),
         // View options
-        Row(
-          children: [
-            const Icon(Icons.view_list, size: 22),
-            const SizedBox(width: 16),
-            const Icon(Icons.edit_note, size: 22),
-          ],
-        ),
+        // Row(
+        //   children: [
+        //     const Icon(Icons.view_list, size: 22),
+        //     const SizedBox(width: 16),
+        //     const Icon(Icons.edit_note, size: 22),
+        //   ],
+        // ),
       ],
     );
   }
 
-  Widget _buildTab(String title, bool isActive, int count) {
+  Widget _buildTab(String title, bool isActive, int count, Function onTap) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isActive ? Colors.white : Colors.grey,
+        GestureDetector(
+          onTap: () {
+            onTap();
+          },
+          child: Row(
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isActive ? Colors.white : Colors.grey,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              count.toString(),
-              style: TextStyle(
-                fontSize: 16,
-                color: isActive ? Colors.white : Colors.grey,
+              const SizedBox(width: 4),
+              Text(
+                count.toString(),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isActive ? Colors.white : Colors.grey,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         if (isActive)
           Container(
@@ -271,9 +358,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                   shrinkWrap: true,
                   physics: NeverScrollableScrollPhysics(),
-                  itemCount: videos.length,
+                  itemCount: listVideo.length,
                   itemBuilder: (context, index) {
-                    final video = videos[index];
+                    final video = listVideo[index];
                     return GestureDetector(
                       onTap: () {
                         Navigator.push(

@@ -1,9 +1,10 @@
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 
 class CaptionTextColor extends StatefulWidget {
-  final utils.Caption caption;
+  final ffmpeg_helper.Caption caption;
   final Function onSaved;
 
   const CaptionTextColor({

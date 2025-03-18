@@ -1,46 +1,5 @@
-// Copyright (c)  2024  Xiaomi Corporation
 import 'package:bordered_text/bordered_text.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'dart:typed_data';
-import "dart:io";
-
-// Copy the asset file from src to dst
-Future<String> copyAssetFile(String src, [String? dst]) async {
-  final Directory directory = await getApplicationDocumentsDirectory();
-  if (dst == null) {
-    dst = basename(src);
-  }
-  final target = join(directory.path, dst);
-  bool exists = await new File(target).exists();
-
-  final data = await rootBundle.load(src);
-
-  if (!exists || File(target).lengthSync() != data.lengthInBytes) {
-    final List<int> bytes = data.buffer.asUint8List(
-      data.offsetInBytes,
-      data.lengthInBytes,
-    );
-    await File(target).writeAsBytes(bytes);
-  }
-
-  return target;
-}
-
-Float32List convertBytesToFloat32(Uint8List bytes, [endian = Endian.little]) {
-  final values = Float32List(bytes.length ~/ 2);
-
-  final data = ByteData.view(bytes.buffer);
-
-  for (var i = 0; i < bytes.length; i += 2) {
-    int short = data.getInt16(i, endian);
-    values[i ~/ 2] = short / 32678.0;
-  }
-
-  return values;
-}
 
 class Caption {
   String text;
@@ -181,7 +140,7 @@ class Caption {
 
     // Build the drawtext filter
     String drawtextFilter =
-        "drawtext=text='$text':fontcolor='${_convertColorToHex(color)}':fontsize=$size";
+        "drawtext=text='${text.replaceAll('"', '\u201E').replaceAll("'", "\u2019").trim()}':fontcolor='${_convertColorToHex(color)}':fontsize=$size";
 
     // Add font file if provided
     if (fontFile != null && fontFile!.isNotEmpty) {
@@ -235,6 +194,36 @@ class Caption {
         ":y=$yPosition:enable='between(t,${startTime.inSeconds},${endTime.inSeconds})'";
 
     return drawtextFilter;
+  }
+
+  String _formatDuration(Duration duration) {
+    String hours = duration.inHours.toString().padLeft(2, '0');
+    String minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
+    String seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+    String milliseconds = (duration.inMilliseconds % 1000).toString().padLeft(
+      3,
+      '0',
+    );
+    return '$hours:$minutes:$seconds,$milliseconds';
+  }
+
+  String get srtTimeFormat {
+    return '${_formatDuration(startTime)} --> ${_formatDuration(endTime)}';
+  }
+
+  String get advancedSrtFormat {
+    // Convert normalized positions to percentages (0-100%)
+    int verticalPercentage = (y ?? 0 * 100).round();
+    int horizontalPercentage = (x ?? 0 * 100).round();
+
+    String alignment = '';
+    if (textAlign == TextAlign.left) {
+      alignment = 'align:left ';
+    } else if (textAlign == TextAlign.right) {
+      alignment = 'align:right ';
+    }
+
+    return '${_formatDuration(startTime)} --> ${_formatDuration(endTime)} ${alignment}line:${verticalPercentage}% position:${horizontalPercentage}%';
   }
 
   //convert color to 0xFFFFFF
@@ -300,52 +289,6 @@ class Caption {
               .first
               .replaceAll("-Regular", ""),
           // backgroundColor: Colors.black.withOpacity(0.6),
-        ),
-      ),
-    );
-    return Container(
-      alignment: _getAlignment(
-        textAlign ?? 'center',
-      ), // Default to center alignment
-      padding: const EdgeInsets.all(8.0), // Add some padding
-      decoration:
-          addBox == true
-              ? BoxDecoration(
-                color: parseColor(
-                  boxColor ?? 'black@0.5',
-                ), // Background box color
-                border:
-                    boxBorderWidth != null && boxBorderColor != null
-                        ? Border.all(
-                          color: parseColor(boxBorderColor!),
-                          width: boxBorderWidth!.toDouble(),
-                        )
-                        : null,
-              )
-              : null,
-      child: Text(
-        text,
-        style: TextStyle(
-          color: parseColor(fontColor ?? 'white'), // Default font color
-          fontSize: fontSize?.toDouble() ?? 24.0, // Default font size
-          fontFamily:
-              fontFile != null
-                  ? 'CustomFont'
-                  : null, // Custom font (if provided)
-          shadows:
-              shadowX != null && shadowY != null && shadowColor != null
-                  ? [
-                    Shadow(
-                      color: Color(shadowColor!),
-                      offset: Offset(shadowX!.toDouble(), shadowY!.toDouble()),
-                    ),
-                  ]
-                  : null,
-          letterSpacing: lineSpacing, // Line spacing
-          backgroundColor:
-              borderWidth != null && borderColor != null
-                  ? parseColor(borderColor!)
-                  : null, // Text border
         ),
       ),
     );
@@ -439,104 +382,17 @@ class FFmpegCaptionManager {
 
     return command;
   }
-}
 
-class Subtitle {
-  final int id;
-  Duration startTime;
-  Duration endTime;
-  String text;
+  String generateSRT() {
+    String srtContent = '';
 
-  // Position properties (normalized from 0.0 to 1.0)
-  double verticalPosition;
-  double horizontalPosition;
-  TextAlign textAlign;
-  String? fontFile;
-  String? fontColor;
-  int? fontSize;
-
-  Subtitle({
-    required this.id,
-    required this.startTime,
-    required this.endTime,
-    required this.text,
-    this.verticalPosition = 0.9, // Default bottom
-    this.horizontalPosition = 0.5, // Default center
-    this.textAlign = TextAlign.center,
-    this.fontFile = "/system/fonts/Roboto-Regular.ttf",
-    this.fontColor = "white",
-    this.fontSize = 16,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'startTime': startTime.inMilliseconds,
-      'endTime': endTime.inMilliseconds,
-      'text': text,
-      'verticalPosition': verticalPosition,
-      'horizontalPosition': horizontalPosition,
-      'textAlign': textAlign.index,
-      'fontFile': fontFile,
-      'fontColor': fontColor,
-      'fontSize': fontSize,
-    };
-  }
-
-  factory Subtitle.fromJson(Map<String, dynamic> json) {
-    return Subtitle(
-      id: json['id'],
-      startTime: Duration(milliseconds: json['startTime']),
-      endTime: Duration(milliseconds: json['endTime']),
-      text: json['text'],
-      verticalPosition: json['verticalPosition'] ?? 0.9,
-      horizontalPosition: json['horizontalPosition'] ?? 0.5,
-      textAlign: TextAlign.values[json['textAlign'] ?? 1],
-      fontFile: json['fontFile'],
-      fontColor: json['fontColor'],
-      fontSize: json['fontSize'],
-    );
-  }
-
-  String get srtTimeFormat {
-    String _formatDuration(Duration duration) {
-      String hours = duration.inHours.toString().padLeft(2, '0');
-      String minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
-      String seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-      String milliseconds = (duration.inMilliseconds % 1000).toString().padLeft(
-        3,
-        '0',
-      );
-      return '$hours:$minutes:$seconds,$milliseconds';
+    for (int i = 0; i < captions.length; i++) {
+      final subtitle = captions[i];
+      srtContent += '${i + 1}\n';
+      srtContent += '${subtitle.advancedSrtFormat}\n';
+      srtContent += '${subtitle.text}\n\n';
     }
 
-    return '${_formatDuration(startTime)} --> ${_formatDuration(endTime)}';
-  }
-
-  // Advanced SRT with positioning (WebVTT style)
-  String get advancedSrtFormat {
-    String _formatDuration(Duration duration) {
-      String hours = duration.inHours.toString().padLeft(2, '0');
-      String minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
-      String seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-      String milliseconds = (duration.inMilliseconds % 1000).toString().padLeft(
-        3,
-        '0',
-      );
-      return '$hours:$minutes:$seconds,$milliseconds';
-    }
-
-    // Convert normalized positions to percentages (0-100%)
-    int verticalPercentage = (verticalPosition * 100).round();
-    int horizontalPercentage = (horizontalPosition * 100).round();
-
-    String alignment = '';
-    if (textAlign == TextAlign.left) {
-      alignment = 'align:left ';
-    } else if (textAlign == TextAlign.right) {
-      alignment = 'align:right ';
-    }
-
-    return '${_formatDuration(startTime)} --> ${_formatDuration(endTime)} ${alignment}line:${verticalPercentage}% position:${horizontalPercentage}%';
+    return srtContent;
   }
 }
