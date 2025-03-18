@@ -252,9 +252,11 @@ packages:
   ffmpeg_kit_flutter_video:
     dependency: "direct main"
     description:
-      path: "../ffmpeg_kit_flutter_video"
-      relative: true
-    source: path
+      path: "."
+      ref: HEAD
+      resolved-ref: c74b94f4d651b3a39d7bad9c8710cee1bf2d8bd8
+      url: "https://github.com/bagusindrayana/ffmpeg_kit_flutter_video_new.git"
+    source: git
     version: "6.0.3"
   file:
     dependency: transitive
@@ -267,9 +269,11 @@ packages:
   file_picker:
     dependency: "direct main"
     description:
-      path: "../flutter_file_picker"
-      relative: true
-    source: path
+      path: "."
+      ref: HEAD
+      resolved-ref: "9e39032331ff92010f3e471800601e2d5aa50a00"
+      url: "https://github.com/bagusindrayana/flutter_file_picker.git"
+    source: git
     version: "9.0.2"
   fixnum:
     dependency: transitive

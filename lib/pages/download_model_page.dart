@@ -109,11 +109,14 @@ class _DownloadModelPageState extends State<DownloadModelPage> {
           '${documentsDir.path}/sherpa-onnx-whisper-${model.name}';
 
       if (File(bz2FilePath).existsSync()) {
+      print("EXIST");
         var size = await getFileSizeInMB(File(bz2FilePath));
         if (size >= model.size - 1) {
-          return extractFile(bz2FilePath, extractedFilePath);
+          return extractFile(File(bz2FilePath), extractedFilePath);
         }
       }
+
+      return;
 
       // Download the file
       final bz2File = await DownloadHelper.downloadFile(

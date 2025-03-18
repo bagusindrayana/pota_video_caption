@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 
 class DownloadHelper {
   static ValueNotifier<File?> downloadedFile = ValueNotifier(null);
@@ -54,12 +55,14 @@ class DownloadHelper {
     required File bz2File,
     required String outputPath,
   }) async {
-    final bytes = await bz2File.readAsBytes();
-    final archive = BZip2Decoder().decodeBytes(bytes);
 
-    final extractedFile = File(outputPath);
-    await extractedFile.writeAsBytes(archive);
+    await extractFileToDisk(bz2File.path,outputPath);
+//     final bytes = await bz2File.readAsBytes();
+//     final archive = BZip2Decoder().decodeBytes(bytes);
+//
+//     final extractedFile = File(outputPath);
+//     await extractedFile.writeAsBytes(archive);
 
-    return extractedFile;
+    return bz2File;
   }
 }

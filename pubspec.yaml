@@ -38,14 +38,13 @@ dependencies:
   cupertino_icons: ^1.0.8
   sherpa_onnx: ^1.10.46
   file_picker:
-    path: ../flutter_file_picker
+    git: https://github.com/bagusindrayana/flutter_file_picker.git
   path_provider: ^2.1.5
   permission_handler: ^11.4.0
   path: ^1.9.1
   video_player: ^2.9.3
-
   ffmpeg_kit_flutter_video:
-    path: ../ffmpeg_kit_flutter_video
+    git: https://github.com/bagusindrayana/ffmpeg_kit_flutter_video_new.git
   loader_overlay: ^5.0.0
   flutter_file_dialog: ^3.0.2
   stroke_text: ^1.0.0
