@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
-import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/utils.dart' as utils;
 import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 import 'package:video_player/video_player.dart';
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/utils.dart' as utils;
 import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 
 class CaptionTextFont extends StatefulWidget {

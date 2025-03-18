@@ -2,7 +2,7 @@ import 'package:bordered_text/bordered_text.dart';
 import 'package:flutter/material.dart';
 import 'package:pota_video_caption/video_caption_controller.dart';
 import 'package:video_player/video_player.dart';
-import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/utils.dart' as utils;
 
 class VideoViewer extends StatefulWidget {
   const VideoViewer({super.key, required this.controller, this.child});

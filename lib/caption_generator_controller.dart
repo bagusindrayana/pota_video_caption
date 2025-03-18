@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
-import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/utils.dart' as utils;
 import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
@@ -57,7 +57,7 @@ class CaptionGeneratorController extends ChangeNotifier {
 
       for (var model in models) {
         final modelDir = Directory(
-          '${documentsDir.path}/sherpa-onnx-whisper-$model',
+          '${documentsDir.path}/models/sherpa-onnx-whisper-$model',
         );
 
         // Create the model directory if it doesn't exist
@@ -74,7 +74,8 @@ class CaptionGeneratorController extends ChangeNotifier {
 
         // Copy model files from assets to documents directory
         for (final modelFile in modelFiles) {
-          final assetFile = 'assets/sherpa-onnx-whisper-$model/$modelFile';
+          final assetFile =
+              'assets/models/sherpa-onnx-whisper-$model/$modelFile';
           final targetFile = '${modelDir.path}/${modelFile.split('/').last}';
 
           if (!File(targetFile).existsSync()) {

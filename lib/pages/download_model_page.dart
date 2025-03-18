@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import '../download_helper.dart'; // Import the reusable class
+import '../utils/download_helper.dart'; // Import the reusable class
 
 class WhisperModel {
   final String name;

@@ -14,7 +14,7 @@ import 'package:pota_video_caption/caption_generator_controller.dart';
 import 'package:pota_video_caption/models/video_project/video_project.dart';
 import 'package:pota_video_caption/pages/download_model_page.dart';
 import 'package:pota_video_caption/pages/video_result_preview.dart';
-import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/utils.dart' as utils;
 import 'package:pota_video_caption/utils/ffmpeg_helper.dart' as ffmpeg_helper;
 import 'package:pota_video_caption/models/video_project/video_project.dart'
     as vp;

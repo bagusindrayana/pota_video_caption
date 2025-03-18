@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:pota_video_caption/utils.dart' as utils;
+import 'package:pota_video_caption/utils/utils.dart' as utils;
 import 'package:pota_video_caption/video_caption_controller.dart';
 import 'package:pota_video_caption/widgets/caption_text_editor.dart';
 import 'package:pota_video_caption/widgets/scale_painter.dart';
