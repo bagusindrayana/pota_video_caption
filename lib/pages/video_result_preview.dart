@@ -27,7 +27,6 @@ class _VideoResultPreviewState extends State<VideoResultPreview> {
       chewieController = ChewieController(
         videoPlayerController: videoPlayerController,
         autoPlay: true,
-        looping: true,
       );
       setState(() {});
     });
@@ -36,15 +35,22 @@ class _VideoResultPreviewState extends State<VideoResultPreview> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("${path.basename(widget.path)}")),
+      appBar: AppBar(title: Text("Video Result")),
       body: Center(
-        child:
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
             videoPlayerController.value.isInitialized
                 ? AspectRatio(
                   aspectRatio: videoPlayerController.value.aspectRatio,
                   child: Chewie(controller: chewieController),
                 )
                 : CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text("Saved : ${widget.path}", textAlign: TextAlign.center),
+          ],
+        ),
       ),
     );
   }

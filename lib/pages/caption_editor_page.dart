@@ -482,6 +482,25 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
           captions: _controller!.captions,
         );
 
+    Directory? directory = await getExternalStorageDirectory();
+
+    String newPath = "";
+    List<String> paths = directory!.path.split("/");
+    for (int x = 1; x < paths.length; x++) {
+      String folder = paths[x];
+      if (folder != "Android") {
+        newPath += "/" + folder;
+      } else {
+        break;
+      }
+    }
+    newPath = newPath + "/PotaCaption";
+    directory = Directory(newPath);
+
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+
     await FFmpegKit.execute(manager.generateCommand()).then((session) async {
       final returnCode = await session.getReturnCode();
 
@@ -490,34 +509,69 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
           //await 1 second
           await Future.delayed(const Duration(seconds: 1));
 
-          final params = SaveFileDialogParams(sourceFilePath: targetOutput);
-          final filePath = await FlutterFileDialog.saveFile(params: params);
+          if (await directory!.exists()) {
+            final File file = File(targetOutput);
+            // your logic for saving the file.
 
-          // print(filePath);
-          if (filePath != null) {
-            videoProject?.exported = true;
-            await _updateData();
+            var savedFile = await file.copy(
+              path.join(directory.path, path.basename(file.path)),
+            );
 
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Video Exported : ${path.basename(filePath)}'),
+                  content: Text(
+                    'Video Exported : ${path.basename(savedFile.path)}',
+                  ),
                 ),
               );
               Navigator.pop(context);
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => VideoResultPreview(path: targetOutput),
-                ),
-              );
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => VideoResultPreview(path: targetOutput),
+              //   ),
+              // );
+
+              _showVideoResultDialog(savedFile.path);
             }
           } else {
             if (mounted) {
               Navigator.pop(context);
             }
           }
+
+          // final params = SaveFileDialogParams(sourceFilePath: targetOutput);
+          // final filePath = await FlutterFileDialog.saveFile(params: params);
+
+          // print(filePath);
+          // if (filePath != null) {
+          //   videoProject?.exported = true;
+          //   await _updateData();
+
+          //   if (mounted) {
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       SnackBar(
+          //         content: Text('Video Exported : ${path.basename(filePath)}'),
+          //       ),
+          //     );
+          //     Navigator.pop(context);
+
+          //     // Navigator.push(
+          //     //   context,
+          //     //   MaterialPageRoute(
+          //     //     builder: (context) => VideoResultPreview(path: targetOutput),
+          //     //   ),
+          //     // );
+
+          //     _showVideoResultDialog(targetOutput);
+          //   }
+          // } else {
+          //   if (mounted) {
+          //     Navigator.pop(context);
+          //   }
+          // }
         } else {
           if (mounted) {
             Navigator.pop(context);
@@ -617,6 +671,18 @@ class _CaptionEditorPageState extends State<CaptionEditorPage> {
             ),
           ],
         );
+      },
+    );
+  }
+
+  void _showVideoResultDialog(String resultPath) {
+    //show alert dialog with input textfield to edit videoProject.title
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+
+      builder: (BuildContext context) {
+        return VideoResultPreview(path: resultPath);
       },
     );
   }

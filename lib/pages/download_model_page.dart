@@ -127,6 +127,7 @@ class _DownloadModelPageState extends State<DownloadModelPage> {
           }
           if (progress == 1) {
             setState(() {
+              model.updateProgress(1);
               model.exist = true;
             });
             // Extract the file
@@ -137,6 +138,7 @@ class _DownloadModelPageState extends State<DownloadModelPage> {
       bz2File.addListener(() {
         if (bz2File.value != null) {
           print(bz2File.value?.path);
+          model.updateProgress(1);
           extractFile(bz2File.value, extractedFilePath);
         }
       });
