@@ -15,7 +15,7 @@ class TimelineSlider extends StatefulWidget {
     required this.controller,
     this.onCaptionTap,
     this.height = 100,
-    this.captionBackgroundColor = const Color(0xFF974836),
+    this.captionBackgroundColor = Colors.purple,
     this.touchAreaColor = Colors.grey,
     this.baselineColor = Colors.purpleAccent,
     this.captionTextStyle = const TextStyle(

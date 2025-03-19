@@ -83,10 +83,11 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/
     # - assets/sherpa-onnx-whisper-tiny/
     - assets/vad/
-    # - assets/fonts/
+    # - assets/models/sherpa-onnx-whisper-tiny/
+    # - assets/models/sherpa-onnx-whisper-small/
+    # - assets/models/sherpa-onnx-whisper-turbo/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -113,3 +114,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo.png"
+  image_path: "assets/logo.png"
+  min_sdk_android: 24 # android min sdk min:16, default 21

@@ -45,3 +45,4 @@ app.*.map.json
 /android/app/release
 /assets/sherpa-onnx-whisper-tiny/
 /assets/fonts/
+/assets/models/
