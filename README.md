@@ -35,6 +35,7 @@ Generate caption/subtitle for video using AI locally in your android phone
 
 
 ## Todo
+- [ ] increase performance in video preview
 - [ ] better segmentation timestamp (to split word by word, probably using some math to count word length)
 - [ ] add basic video editing (cut, merge, format, etc)
 
