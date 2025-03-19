@@ -32,6 +32,7 @@ Generate caption/subtitle for video using AI locally in your android phone
 - depend on device, generation process will take some time
 - suitable for short video
 - not accurate segmentation timestamp
+- realy bad performance in video preview
 
 
 ## Todo
