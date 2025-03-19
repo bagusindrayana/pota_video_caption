@@ -45,9 +45,15 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> deleteData(VideoProject video) async {
     final isar = isarService.isar;
+    String? videoPath = video.videoPath;
     await isar.writeTxn(() async {
       await isar.videoProjects.delete(video.id);
     });
+    if (videoPath != null) {
+      if (await File(videoPath).exists()) {
+        await File(videoPath).delete();
+      }
+    }
     await getData();
     if (mounted) {
       ScaffoldMessenger.of(

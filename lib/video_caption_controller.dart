@@ -142,7 +142,7 @@ class VideoCaptoinController extends ChangeNotifier {
   }
 
   seekTo(Duration timestamp) async {
-    await _video.seekTo(timestamp);
+    _video.seekTo(timestamp);
     seekCaptionTo(timestamp);
   }
 

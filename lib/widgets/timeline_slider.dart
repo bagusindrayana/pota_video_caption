@@ -113,6 +113,7 @@ class _TimelineSliderState extends State<TimelineSlider>
 
   void attachScroll() {
     if (_scrollController.position.isScrollingNotifier.value) {
+      // print(_scrollController.offset);
       // update trim and video position
       if (_scrollController.position.userScrollDirection !=
           ScrollDirection.idle) {
@@ -121,7 +122,9 @@ class _TimelineSliderState extends State<TimelineSlider>
         }
         widget.controller.highlightCaption = null;
         _controllerSeekTo(_scrollController.offset);
-      } else {}
+      } else {
+        //_controllerSeekTo(_scrollController.offset);
+      }
     }
   }
 
@@ -129,7 +132,8 @@ class _TimelineSliderState extends State<TimelineSlider>
   /// If the expected position is bigger than [captionController.endTrim], set it to [captionController.endTrim]
   void _controllerSeekTo(double position) async {
     final to = widget.controller.videoDuration * (position / (_sliderWidth));
-    await widget.controller.seekTo(to);
+    // print(to);
+    widget.controller.seekTo(to);
   }
 
   // Returns the max size the layout should take with the rect value
