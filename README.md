@@ -28,7 +28,7 @@ Generate caption/subtitle for video using AI locally in your android phone
 - locally without internet
 
 ## Cons
-- apk size will be BIG because with bundle ffmpeg (and whisper model if you include it on build)
+- apk size will be BIG because bundle with ffmpeg (and whisper model if you include it on build)
 - depend on device, generation process will take some time
 - suitable for short video
 - not accurate segmentation timestamp
